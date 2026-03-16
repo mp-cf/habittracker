@@ -1,36 +1,65 @@
-This is a [Next.js](https://nextjs.org) project bootstrapped with [`create-next-app`](https://nextjs.org/docs/app/api-reference/cli/create-next-app).
+# Monthly Habit Tracker
+
+A simple web app for tracking monthly habits using Next.js. Add habits and check off days in a grid view. Data is stored locally in JSON files, with an API designed for easy PostgreSQL integration.
+
+## Features
+
+- Add and delete habits
+- Monthly grid view with checkboxes for each day
+- Navigate between months
+- Local storage (JSON files) with REST API
+- Ready for PostgreSQL migration
 
 ## Getting Started
 
-First, run the development server:
+1. Install dependencies:
+   ```bash
+   npm install
+   ```
+
+2. Run the development server:
+   ```bash
+   npm run dev
+   ```
+
+3. Open [http://localhost:3000](http://localhost:3000) in your browser.
+
+## Docker Deployment (recommended for server)
+
+### Build & run
 
 ```bash
-npm run dev
-# or
-yarn dev
-# or
-pnpm dev
-# or
-bun dev
+docker build -t habittracker .
+docker run -p 3000:3000 -e APP_PASSWORD=letmein habittracker
 ```
 
-Open [http://localhost:3000](http://localhost:3000) with your browser to see the result.
+### Run with PostgreSQL (docker-compose)
 
-You can start editing the page by modifying `app/page.tsx`. The page auto-updates as you edit the file.
+```bash
+docker compose up -d
+```
 
-This project uses [`next/font`](https://nextjs.org/docs/app/building-your-application/optimizing/fonts) to automatically optimize and load [Geist](https://vercel.com/font), a new font family for Vercel.
+Then visit [http://localhost:3000](http://localhost:3000).
 
-## Learn More
+Default password is `letmein` (can be changed via `APP_PASSWORD` env).
 
-To learn more about Next.js, take a look at the following resources:
+## API Endpoints
 
-- [Next.js Documentation](https://nextjs.org/docs) - learn about Next.js features and API.
-- [Learn Next.js](https://nextjs.org/learn) - an interactive Next.js tutorial.
+- `GET/POST /api/habits` - Manage habits
+- `GET/POST /api/months` - Manage months
+- `GET/POST /api/checks` - Manage checks
+- `PATCH /api/checks/[id]` - Update check
+- `DELETE /api/habits/[id]` - Delete habit
 
-You can check out [the Next.js GitHub repository](https://github.com/vercel/next.js) - your feedback and contributions are welcome!
+## PostgreSQL Migration
 
-## Deploy on Vercel
+To switch to PostgreSQL:
+1. Install `pg` and update API routes to use database queries.
+2. Set `DATABASE_URL` environment variable.
+3. Run migration scripts to create tables.
 
-The easiest way to deploy your Next.js app is to use the [Vercel Platform](https://vercel.com/new?utm_medium=default-template&filter=next.js&utm_source=create-next-app&utm_campaign=create-next-app-readme) from the creators of Next.js.
+## Built With
 
-Check out our [Next.js deployment documentation](https://nextjs.org/docs/app/building-your-application/deploying) for more details.
+- Next.js
+- TypeScript
+- Tailwind CSS

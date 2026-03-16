@@ -1,1 +1,38 @@
-[]
+[
+  {
+    "id": "d633eafb-2f7d-4068-af1e-3929a429bc7c",
+    "habit_id": "3eccb6b2-3afb-4c9b-9569-32250343f6c0",
+    "year": 2026,
+    "month": 3
+  },
+  {
+    "id": "9ba31395-d20a-40f2-b5c6-5920a19e98c0",
+    "habit_id": "3eccb6b2-3afb-4c9b-9569-32250343f6c0",
+    "year": 2026,
+    "month": 3
+  },
+  {
+    "id": "d009235b-8630-4fad-a8f5-54114d13a2da",
+    "habit_id": "32f25e99-bd86-45a2-94a1-f2db6bd1f2be",
+    "year": 2026,
+    "month": 3
+  },
+  {
+    "id": "d4875801-231f-4ef9-a0a8-ce7b20336fde",
+    "habit_id": "32f25e99-bd86-45a2-94a1-f2db6bd1f2be",
+    "year": 2026,
+    "month": 3
+  },
+  {
+    "id": "a3ef63d9-399b-4791-b2ab-1c56d3badb6d",
+    "habit_id": "32f25e99-bd86-45a2-94a1-f2db6bd1f2be",
+    "year": 2026,
+    "month": 4
+  },
+  {
+    "id": "fab1ee1c-e8fc-4430-93ba-56c08e5bbc49",
+    "habit_id": "3eccb6b2-3afb-4c9b-9569-32250343f6c0",
+    "year": 2026,
+    "month": 2
+  }
+]
