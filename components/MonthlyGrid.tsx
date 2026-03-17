@@ -67,8 +67,9 @@ export default function MonthlyGrid({ habitId, year, month, password }: MonthlyG
     if (!monthData) return;
     const existingCheck = checks.find(c => c.day === day);
     if (existingCheck) {
-      // Update
-      await fetch(`/api/checks/${existingCheck.id}`, {
+      // Optimistic update
+      setChecks(checks.map(c => c.id === existingCheck.id ? { ...c, completed } : c));
+      fetch(`/api/checks/${existingCheck.id}`, {
         method: 'PATCH',
         headers: {
           'Content-Type': 'application/json',
@@ -76,9 +77,10 @@ export default function MonthlyGrid({ habitId, year, month, password }: MonthlyG
         },
         body: JSON.stringify({ completed }),
       });
-      setChecks(checks.map(c => c.id === existingCheck.id ? { ...c, completed } : c));
     } else {
-      // Create
+      // Optimistic update with a temporary id
+      const tempId = `temp-${day}`;
+      setChecks(prev => [...prev, { id: tempId, month_id: monthData.id, day, completed, updated_at: '' }]);
       const res = await fetch('/api/checks', {
         method: 'POST',
         headers: {
@@ -88,7 +90,7 @@ export default function MonthlyGrid({ habitId, year, month, password }: MonthlyG
         body: JSON.stringify({ month_id: monthData.id, day, completed }),
       });
       const newCheck: Check = await res.json();
-      setChecks([...checks, newCheck]);
+      setChecks(prev => prev.map(c => c.id === tempId ? newCheck : c));
     }
   };
 
