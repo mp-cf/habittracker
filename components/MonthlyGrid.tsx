@@ -110,7 +110,7 @@ export default function MonthlyGrid({ habitId, year, month, password }: MonthlyG
       });
       const newCheck: Check = await res.json();
       setChecks(prev => prev.map(c => c.id === tempId ? newCheck : c));
-      cache.current[cacheKey] = { monthData, checks: checks.map(c => c.id === tempId ? newCheck : c) };
+      cache.current[cacheKey] = { monthData, checks: optimistic.map(c => c.id === tempId ? newCheck : c) };
     }
   };
 
