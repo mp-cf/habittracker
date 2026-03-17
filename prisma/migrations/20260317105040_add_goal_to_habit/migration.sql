@@ -1,0 +1,2 @@
+-- AlterTable
+ALTER TABLE "Habit" ADD COLUMN     "goal" INTEGER NOT NULL DEFAULT 30;

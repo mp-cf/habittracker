@@ -9,6 +9,7 @@ datasource db {
 model Habit {
   id         String   @id @default(uuid())
   name       String
+  goal       Int      @default(30)
   created_at DateTime @default(now())
   months     Month[]
 }

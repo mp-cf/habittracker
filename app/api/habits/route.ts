@@ -23,11 +23,11 @@ export async function POST(request: NextRequest) {
   }
 
   try {
-    const { name } = await request.json();
+    const { name, goal } = await request.json();
     if (!name) {
       return NextResponse.json({ error: 'Name is required' }, { status: 400 });
     }
-    const habit = await prisma.habit.create({ data: { name } });
+    const habit = await prisma.habit.create({ data: { name, goal: goal ?? 30 } });
     return NextResponse.json(habit, { status: 201 });
   } catch {
     return NextResponse.json({ error: 'Failed to add habit' }, { status: 500 });
