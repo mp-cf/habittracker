@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 
 interface Check {
   id: string;
@@ -17,6 +17,11 @@ interface Month {
   month: number;
 }
 
+interface CacheEntry {
+  monthData: Month | null;
+  checks: Check[];
+}
+
 interface MonthlyGridProps {
   habitId: string;
   year: number;
@@ -27,33 +32,50 @@ interface MonthlyGridProps {
 export default function MonthlyGrid({ habitId, year, month, password }: MonthlyGridProps) {
   const [monthData, setMonthData] = useState<Month | null>(null);
   const [checks, setChecks] = useState<Check[]>([]);
+  const cache = useRef<Record<string, CacheEntry>>({});
 
-  useEffect(() => {
-    fetchMonth();
-  }, [habitId, year, month]);
+  const cacheKey = `${year}-${month}`;
 
-  const fetchMonth = async () => {
+  const loadMonth = async (y: number, m: number, applyToState: boolean) => {
+    const key = `${y}-${m}`;
     try {
-      const res = await fetch(`/api/months?habit_id=${habitId}&year=${year}&month=${month}`, {
+      const res = await fetch(`/api/months?habit_id=${habitId}&year=${y}&month=${m}`, {
         headers: { 'x-track-password': password },
       });
       const months: Month[] = await res.json();
-      const monthEntry = months[0];
-      if (!monthEntry) {
-        setMonthData(null);
-        setChecks([]);
-        return;
+      const monthEntry = months[0] ?? null;
+      let checksData: Check[] = [];
+      if (monthEntry) {
+        const checksRes = await fetch(`/api/checks?month_id=${monthEntry.id}`, {
+          headers: { 'x-track-password': password },
+        });
+        checksData = await checksRes.json();
       }
-      setMonthData(monthEntry);
-      const checksRes = await fetch(`/api/checks?month_id=${monthEntry.id}`, {
-        headers: { 'x-track-password': password },
-      });
-      const checksData: Check[] = await checksRes.json();
-      setChecks(checksData);
+      cache.current[key] = { monthData: monthEntry, checks: checksData };
+      if (applyToState) {
+        setMonthData(monthEntry);
+        setChecks(checksData);
+      }
     } catch (error) {
       console.error('Failed to fetch month/checks', error);
     }
   };
+
+  useEffect(() => {
+    const cached = cache.current[cacheKey];
+    if (cached) {
+      setMonthData(cached.monthData);
+      setChecks(cached.checks);
+    } else {
+      loadMonth(year, month, true).then(() => {
+        // Prefetch adjacent months in the background
+        const prev = month === 1 ? { y: year - 1, m: 12 } : { y: year, m: month - 1 };
+        const next = month === 12 ? { y: year + 1, m: 1 } : { y: year, m: month + 1 };
+        if (!cache.current[`${prev.y}-${prev.m}`]) loadMonth(prev.y, prev.m, false);
+        if (!cache.current[`${next.y}-${next.m}`]) loadMonth(next.y, next.m, false);
+      });
+    }
+  }, [habitId, year, month]);
 
   const handleCheck = async (day: number, completed: boolean) => {
     let currentMonth = monthData;
@@ -68,30 +90,27 @@ export default function MonthlyGrid({ habitId, year, month, password }: MonthlyG
     }
     const existingCheck = checks.find(c => c.day === day);
     if (existingCheck) {
-      // Optimistic update
-      setChecks(checks.map(c => c.id === existingCheck.id ? { ...c, completed } : c));
+      const updated = checks.map(c => c.id === existingCheck.id ? { ...c, completed } : c);
+      setChecks(updated);
+      cache.current[cacheKey] = { monthData, checks: updated };
       fetch(`/api/checks/${existingCheck.id}`, {
         method: 'PATCH',
-        headers: {
-          'Content-Type': 'application/json',
-          'x-track-password': password,
-        },
+        headers: { 'Content-Type': 'application/json', 'x-track-password': password },
         body: JSON.stringify({ completed }),
       });
     } else {
-      // Optimistic update with a temporary id
       const tempId = `temp-${day}`;
-      setChecks(prev => [...prev, { id: tempId, month_id: currentMonth!.id, day, completed, updated_at: '' }]);
+      const optimistic = [...checks, { id: tempId, month_id: currentMonth!.id, day, completed, updated_at: '' }];
+      setChecks(optimistic);
+      cache.current[cacheKey] = { monthData, checks: optimistic };
       const res = await fetch('/api/checks', {
         method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          'x-track-password': password,
-        },
+        headers: { 'Content-Type': 'application/json', 'x-track-password': password },
         body: JSON.stringify({ month_id: currentMonth!.id, day, completed }),
       });
       const newCheck: Check = await res.json();
       setChecks(prev => prev.map(c => c.id === tempId ? newCheck : c));
+      cache.current[cacheKey] = { monthData, checks: checks.map(c => c.id === tempId ? newCheck : c) };
     }
   };
 
