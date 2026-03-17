@@ -1,0 +1,32 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+}
+
+model Habit {
+  id         String   @id @default(uuid())
+  name       String
+  created_at DateTime @default(now())
+  months     Month[]
+}
+
+model Month {
+  id       String  @id @default(uuid())
+  habit_id String
+  year     Int
+  month    Int
+  habit    Habit   @relation(fields: [habit_id], references: [id], onDelete: Cascade)
+  checks   Check[]
+}
+
+model Check {
+  id         String   @id @default(uuid())
+  month_id   String
+  day        Int
+  completed  Boolean
+  updated_at DateTime @updatedAt
+  month      Month    @relation(fields: [month_id], references: [id], onDelete: Cascade)
+}

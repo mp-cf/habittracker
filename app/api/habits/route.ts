@@ -1,49 +1,35 @@
-import { promises as fs } from 'fs';
-import path from 'path';
 import { NextRequest, NextResponse } from 'next/server';
-import { v4 as uuidv4 } from 'uuid';
-
-const filePath = path.join(process.cwd(), 'data', 'habits.json');
-
 import { verifyPassword } from '@/lib/auth';
+import { prisma } from '@/lib/prisma';
 
 export async function GET(request: NextRequest) {
-  try {
-    const provided = request.headers.get('x-track-password') ?? '';
-    if (!(await verifyPassword(provided))) {
-      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
-    }
+  const provided = request.headers.get('x-track-password') ?? '';
+  if (!(await verifyPassword(provided))) {
+    return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+  }
 
-    const data = await fs.readFile(filePath, 'utf8');
-    const habits = JSON.parse(data);
+  try {
+    const habits = await prisma.habit.findMany({ orderBy: { created_at: 'asc' } });
     return NextResponse.json(habits);
-  } catch (error) {
+  } catch {
     return NextResponse.json({ error: 'Failed to fetch habits' }, { status: 500 });
   }
 }
 
 export async function POST(request: NextRequest) {
-  try {
-    const provided = request.headers.get('x-track-password') ?? '';
-    if (!(await verifyPassword(provided))) {
-      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
-    }
+  const provided = request.headers.get('x-track-password') ?? '';
+  if (!(await verifyPassword(provided))) {
+    return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+  }
 
+  try {
     const { name } = await request.json();
     if (!name) {
       return NextResponse.json({ error: 'Name is required' }, { status: 400 });
     }
-    const data = await fs.readFile(filePath, 'utf8');
-    const habits = JSON.parse(data);
-    const newHabit = {
-      id: uuidv4(),
-      name,
-      created_at: new Date().toISOString(),
-    };
-    habits.push(newHabit);
-    await fs.writeFile(filePath, JSON.stringify(habits, null, 2));
-    return NextResponse.json(newHabit, { status: 201 });
-  } catch (error) {
+    const habit = await prisma.habit.create({ data: { name } });
+    return NextResponse.json(habit, { status: 201 });
+  } catch {
     return NextResponse.json({ error: 'Failed to add habit' }, { status: 500 });
   }
 }
