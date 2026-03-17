@@ -2,8 +2,14 @@
 
 import { useState } from 'react';
 
+interface Habit {
+  id: string;
+  name: string;
+  created_at: string;
+}
+
 interface AddHabitFormProps {
-  onHabitAdded: () => void;
+  onHabitAdded: (habit: Habit) => void;
   password: string;
 }
 
@@ -23,8 +29,9 @@ export default function AddHabitForm({ onHabitAdded, password }: AddHabitFormPro
         body: JSON.stringify({ name }),
       });
       if (res.ok) {
+        const habit = await res.json();
         setName('');
-        onHabitAdded();
+        onHabitAdded(habit);
       }
     } catch (error) {
       console.error('Failed to add habit', error);

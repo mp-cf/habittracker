@@ -119,14 +119,14 @@ export default function Home() {
           <HabitCard
             key={habit.id}
             habit={habit}
-            onDeleted={() => fetchHabits(password)}
+            onDeleted={(id) => setHabits(prev => prev.filter(h => h.id !== id))}
             currentYear={currentYear}
             currentMonth={currentMonth}
             password={password}
           />
         ))}
       </div>
-      <AddHabitForm onHabitAdded={() => fetchHabits(password)} password={password} />
+      <AddHabitForm onHabitAdded={(habit) => setHabits(prev => [...prev, habit])} password={password} />
     </div>
   );
 }

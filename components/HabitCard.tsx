@@ -11,7 +11,7 @@ interface Habit {
 
 interface HabitCardProps {
   habit: Habit;
-  onDeleted: () => void;
+  onDeleted: (id: string) => void;
   currentYear: number;
   currentMonth: number;
   password: string;
@@ -20,15 +20,11 @@ interface HabitCardProps {
 export default function HabitCard({ habit, onDeleted, currentYear, currentMonth, password }: HabitCardProps) {
   const handleDelete = async () => {
     if (confirm('Delete this habit?')) {
-      try {
-        await fetch(`/api/habits/${habit.id}`, {
-          method: 'DELETE',
-          headers: { 'x-track-password': password },
-        });
-        onDeleted();
-      } catch (error) {
-        console.error('Failed to delete habit', error);
-      }
+      onDeleted(habit.id);
+      fetch(`/api/habits/${habit.id}`, {
+        method: 'DELETE',
+        headers: { 'x-track-password': password },
+      });
     }
   };
 

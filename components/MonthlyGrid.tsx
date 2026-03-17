@@ -38,21 +38,13 @@ export default function MonthlyGrid({ habitId, year, month, password }: MonthlyG
         headers: { 'x-track-password': password },
       });
       const months: Month[] = await res.json();
-      let monthEntry = months[0];
+      const monthEntry = months[0];
       if (!monthEntry) {
-        // Create new month
-        const createRes = await fetch('/api/months', {
-          method: 'POST',
-          headers: {
-            'Content-Type': 'application/json',
-            'x-track-password': password,
-          },
-          body: JSON.stringify({ habit_id: habitId, year, month }),
-        });
-        monthEntry = await createRes.json();
+        setMonthData(null);
+        setChecks([]);
+        return;
       }
       setMonthData(monthEntry);
-      // Fetch checks
       const checksRes = await fetch(`/api/checks?month_id=${monthEntry.id}`, {
         headers: { 'x-track-password': password },
       });
@@ -64,7 +56,16 @@ export default function MonthlyGrid({ habitId, year, month, password }: MonthlyG
   };
 
   const handleCheck = async (day: number, completed: boolean) => {
-    if (!monthData) return;
+    let currentMonth = monthData;
+    if (!currentMonth) {
+      const res = await fetch('/api/months', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', 'x-track-password': password },
+        body: JSON.stringify({ habit_id: habitId, year, month }),
+      });
+      currentMonth = await res.json();
+      setMonthData(currentMonth);
+    }
     const existingCheck = checks.find(c => c.day === day);
     if (existingCheck) {
       // Optimistic update
@@ -80,14 +81,14 @@ export default function MonthlyGrid({ habitId, year, month, password }: MonthlyG
     } else {
       // Optimistic update with a temporary id
       const tempId = `temp-${day}`;
-      setChecks(prev => [...prev, { id: tempId, month_id: monthData.id, day, completed, updated_at: '' }]);
+      setChecks(prev => [...prev, { id: tempId, month_id: currentMonth!.id, day, completed, updated_at: '' }]);
       const res = await fetch('/api/checks', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
           'x-track-password': password,
         },
-        body: JSON.stringify({ month_id: monthData.id, day, completed }),
+        body: JSON.stringify({ month_id: currentMonth!.id, day, completed }),
       });
       const newCheck: Check = await res.json();
       setChecks(prev => prev.map(c => c.id === tempId ? newCheck : c));
