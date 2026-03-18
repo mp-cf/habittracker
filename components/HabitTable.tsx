@@ -35,13 +35,38 @@ interface Props {
   password: string;
 }
 
-const WEEK_COLS = [
-  { label: 'WEEK 1', days: [1, 2, 3, 4, 5, 6, 7],       bg: '#e8f5e9', color: '#2e7d32' },
-  { label: 'WEEK 2', days: [8, 9, 10, 11, 12, 13, 14],   bg: '#e3f2fd', color: '#1565c0' },
-  { label: 'WEEK 3', days: [15, 16, 17, 18, 19, 20, 21], bg: '#fff3e0', color: '#e65100' },
-  { label: 'WEEK 4', days: [22, 23, 24, 25, 26, 27, 28], bg: '#e8f5e9', color: '#2e7d32' },
-  { label: 'WEEK 5', days: [29, 30, 31],                  bg: '#fff3e0', color: '#e65100' },
+const WEEK_COLORS = [
+  { bg: '#e8f5e9', color: '#2e7d32' },
+  { bg: '#e3f2fd', color: '#1565c0' },
+  { bg: '#fff3e0', color: '#e65100' },
+  { bg: '#e8f5e9', color: '#2e7d32' },
+  { bg: '#fff3e0', color: '#e65100' },
+  { bg: '#e3f2fd', color: '#1565c0' },
 ];
+
+// Compute Mon-Sun week groups covering all 31 columns
+function getWeekGroups(year: number, month: number) {
+  const firstDayOfMonth = new Date(year, month - 1, 1).getDay(); // 0=Sun … 6=Sat
+  const firstDayMon = (firstDayOfMonth + 6) % 7; // Mon=0 … Sun=6
+
+  const weeks: { label: string; days: number[] }[] = [];
+  let day = 1;
+  let weekNum = 1;
+
+  // First (possibly partial) week: from day 1 to the first Sunday
+  const firstWeek: number[] = [];
+  for (let i = 0; i < 7 - firstDayMon; i++) firstWeek.push(day++);
+  weeks.push({ label: `WEEK ${weekNum++}`, days: firstWeek });
+
+  // Remaining weeks until day 31
+  while (day <= 31) {
+    const week: number[] = [];
+    for (let i = 0; i < 7 && day <= 31; i++) week.push(day++);
+    weeks.push({ label: `WEEK ${weekNum++}`, days: week });
+  }
+
+  return weeks.map((w, i) => ({ ...w, ...WEEK_COLORS[i % WEEK_COLORS.length] }));
+}
 
 const ALL_DAYS = Array.from({ length: 31 }, (_, i) => i + 1);
 
@@ -205,6 +230,8 @@ export default function HabitTable({ year, month, password }: Props) {
   const getDailyTotal = (day: number) =>
     habits.reduce((n, h) => n + (getChecks(h.id).find(c => c.day === day && c.completed) ? 1 : 0), 0);
 
+  const weekCols = getWeekGroups(year, month);
+
   const progressColor = (pct: number) =>
     pct >= 80 ? 'bg-green-500' : pct >= 40 ? 'bg-amber-400' : 'bg-red-500';
 
@@ -219,7 +246,7 @@ export default function HabitTable({ year, month, password }: Props) {
             <th className="border border-gray-200 px-2 py-1 bg-gray-50 text-gray-500 font-normal" rowSpan={2}>#</th>
             <th className="border border-gray-200 px-3 py-1 bg-gray-50 text-left text-gray-500 font-normal min-w-[160px]" rowSpan={2}>Habit Name</th>
             <th className="border border-gray-200 px-2 py-1 bg-gray-50 text-gray-500 font-normal" rowSpan={2}>Goal</th>
-            {WEEK_COLS.map(w => (
+            {weekCols.map(w => (
               <th
                 key={w.label}
                 colSpan={w.days.length}
