@@ -6,27 +6,22 @@ interface Habit {
   id: string;
   name: string;
   goal: number;
-  created_at: string;
-}
-
-interface Month {
-  id: string;
-  habit_id: string;
   year: number;
   month: number;
+  created_at: string;
 }
 
 interface Check {
   id: string;
-  month_id: string;
+  habit_id: string;
   day: number;
   completed: boolean;
   updated_at: string;
 }
 
 interface CacheEntry {
-  monthsMap: Record<string, Month>;   // habitId -> Month
-  checksMap: Record<string, Check[]>; // monthId -> Check[]
+  habits: Habit[];
+  checksMap: Record<string, Check[]>; // habitId -> Check[]
 }
 
 interface Props {
@@ -44,21 +39,18 @@ const WEEK_COLORS = [
   { bg: '#e3f2fd', color: '#1565c0' },
 ];
 
-// Compute Mon-Sun week groups covering all 31 columns
 function getWeekGroups(year: number, month: number) {
-  const firstDayOfMonth = new Date(year, month - 1, 1).getDay(); // 0=Sun … 6=Sat
+  const firstDayOfMonth = new Date(year, month - 1, 1).getDay();
   const firstDayMon = (firstDayOfMonth + 6) % 7; // Mon=0 … Sun=6
 
   const weeks: { label: string; days: number[] }[] = [];
   let day = 1;
   let weekNum = 1;
 
-  // First (possibly partial) week: from day 1 to the first Sunday
   const firstWeek: number[] = [];
   for (let i = 0; i < 7 - firstDayMon; i++) firstWeek.push(day++);
   weeks.push({ label: `WEEK ${weekNum++}`, days: firstWeek });
 
-  // Remaining weeks until day 31
   while (day <= 31) {
     const week: number[] = [];
     for (let i = 0; i < 7 && day <= 31; i++) week.push(day++);
@@ -72,7 +64,6 @@ const ALL_DAYS = Array.from({ length: 31 }, (_, i) => i + 1);
 
 export default function HabitTable({ year, month, password }: Props) {
   const [habits, setHabits] = useState<Habit[]>([]);
-  const [monthsMap, setMonthsMap] = useState<Record<string, Month>>({});
   const [checksMap, setChecksMap] = useState<Record<string, Check[]>>({});
   const [loading, setLoading] = useState(true);
   const [newHabitName, setNewHabitName] = useState('');
@@ -85,93 +76,61 @@ export default function HabitTable({ year, month, password }: Props) {
   const isCurrentMonth = today.getFullYear() === year && today.getMonth() + 1 === month;
   const todayDay = today.getDate();
 
-  const loadMonthData = useCallback(async (y: number, m: number, applyToState: boolean) => {
+  const loadData = useCallback(async (y: number, m: number, applyToState: boolean) => {
     const key = `${y}-${m}`;
     try {
-      const monthsRes = await fetch(`/api/months?year=${y}&month=${m}`, {
+      const habitsRes = await fetch(`/api/habits?year=${y}&month=${m}`, {
         headers: { 'x-track-password': password },
       });
-      const months: Month[] = await monthsRes.json();
-
-      const mMap: Record<string, Month> = {};
-      for (const mo of months) mMap[mo.habit_id] = mo;
+      const habits: Habit[] = await habitsRes.json();
 
       const checksResults = await Promise.all(
-        months.map(mo =>
-          fetch(`/api/checks?month_id=${mo.id}`, { headers: { 'x-track-password': password } }).then(r => r.json())
+        habits.map(h =>
+          fetch(`/api/checks?habit_id=${h.id}`, { headers: { 'x-track-password': password } }).then(r => r.json())
         )
       );
 
       const cMap: Record<string, Check[]> = {};
-      months.forEach((mo, i) => { cMap[mo.id] = checksResults[i]; });
+      habits.forEach((h, i) => { cMap[h.id] = checksResults[i]; });
 
-      cache.current[key] = { monthsMap: mMap, checksMap: cMap };
+      cache.current[key] = { habits, checksMap: cMap };
       if (applyToState) {
-        setMonthsMap(mMap);
+        setHabits(habits);
         setChecksMap(cMap);
       }
     } catch (e) {
-      console.error('Failed to load month data', e);
+      console.error('Failed to load data', e);
     }
   }, [password]);
 
-  // Fetch habits once
-  useEffect(() => {
-    fetch('/api/habits', { headers: { 'x-track-password': password } })
-      .then(r => r.json())
-      .then(setHabits);
-  }, [password]);
-
-  // Load month data + prefetch neighbours on month change
   useEffect(() => {
     const cached = cache.current[cacheKey];
     if (cached) {
-      setMonthsMap(cached.monthsMap);
+      setHabits(cached.habits);
       setChecksMap(cached.checksMap);
       setLoading(false);
     } else {
       setLoading(true);
-      loadMonthData(year, month, true).then(() => setLoading(false));
+      loadData(year, month, true).then(() => setLoading(false));
     }
 
     const prev = month === 1 ? { y: year - 1, m: 12 } : { y: year, m: month - 1 };
     const next = month === 12 ? { y: year + 1, m: 1 } : { y: year, m: month + 1 };
-    if (!cache.current[`${prev.y}-${prev.m}`]) loadMonthData(prev.y, prev.m, false);
-    if (!cache.current[`${next.y}-${next.m}`]) loadMonthData(next.y, next.m, false);
+    if (!cache.current[`${prev.y}-${prev.m}`]) loadData(prev.y, prev.m, false);
+    if (!cache.current[`${next.y}-${next.m}`]) loadData(next.y, next.m, false);
   }, [year, month]);
-
-  const getChecks = (habitId: string): Check[] => {
-    const mo = monthsMap[habitId];
-    if (!mo) return [];
-    return checksMap[mo.id] || [];
-  };
 
   const handleCheck = async (habitId: string, day: number) => {
     if (day > daysInMonth) return;
 
-    let mo = monthsMap[habitId];
-    let currentMonthsMap = monthsMap;
-    let currentChecksMap = checksMap;
-
-    if (!mo) {
-      const res = await fetch('/api/months', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json', 'x-track-password': password },
-        body: JSON.stringify({ habit_id: habitId, year, month }),
-      });
-      mo = await res.json();
-      currentMonthsMap = { ...monthsMap, [habitId]: mo };
-      setMonthsMap(currentMonthsMap);
-    }
-
-    const checks = currentChecksMap[mo.id] || [];
+    const checks = checksMap[habitId] || [];
     const existing = checks.find(c => c.day === day);
 
     if (existing) {
       const updated = checks.map(c => c.id === existing.id ? { ...c, completed: !c.completed } : c);
-      currentChecksMap = { ...currentChecksMap, [mo.id]: updated };
-      setChecksMap(currentChecksMap);
-      cache.current[cacheKey] = { monthsMap: currentMonthsMap, checksMap: currentChecksMap };
+      const newChecksMap = { ...checksMap, [habitId]: updated };
+      setChecksMap(newChecksMap);
+      cache.current[cacheKey] = { habits, checksMap: newChecksMap };
       fetch(`/api/checks/${existing.id}`, {
         method: 'PATCH',
         headers: { 'Content-Type': 'application/json', 'x-track-password': password },
@@ -179,20 +138,20 @@ export default function HabitTable({ year, month, password }: Props) {
       });
     } else {
       const tempId = `temp-${habitId}-${day}`;
-      const optimistic = [...checks, { id: tempId, month_id: mo.id, day, completed: true, updated_at: '' }];
-      currentChecksMap = { ...currentChecksMap, [mo.id]: optimistic };
-      setChecksMap(currentChecksMap);
-      cache.current[cacheKey] = { monthsMap: currentMonthsMap, checksMap: currentChecksMap };
+      const optimistic = [...checks, { id: tempId, habit_id: habitId, day, completed: true, updated_at: '' }];
+      const newChecksMap = { ...checksMap, [habitId]: optimistic };
+      setChecksMap(newChecksMap);
+      cache.current[cacheKey] = { habits, checksMap: newChecksMap };
 
       const res = await fetch('/api/checks', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json', 'x-track-password': password },
-        body: JSON.stringify({ month_id: mo.id, day, completed: true }),
+        body: JSON.stringify({ habit_id: habitId, day, completed: true }),
       });
       const saved: Check = await res.json();
       const withSaved = optimistic.map(c => c.id === tempId ? saved : c);
-      setChecksMap(prev => ({ ...prev, [mo.id]: withSaved }));
-      cache.current[cacheKey] = { monthsMap: currentMonthsMap, checksMap: { ...currentChecksMap, [mo.id]: withSaved } };
+      setChecksMap(prev => ({ ...prev, [habitId]: withSaved }));
+      cache.current[cacheKey] = { habits, checksMap: { ...newChecksMap, [habitId]: withSaved } };
     }
   };
 
@@ -201,23 +160,34 @@ export default function HabitTable({ year, month, password }: Props) {
     const res = await fetch('/api/habits', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json', 'x-track-password': password },
-      body: JSON.stringify({ name: newHabitName.trim(), goal: 30 }),
+      body: JSON.stringify({ name: newHabitName.trim(), goal: 30, year, month }),
     });
     const habit: Habit = await res.json();
-    setHabits(prev => [...prev, habit]);
+    const newHabits = [...habits, habit];
+    const newChecksMap = { ...checksMap, [habit.id]: [] };
+    setHabits(newHabits);
+    setChecksMap(newChecksMap);
+    cache.current[cacheKey] = { habits: newHabits, checksMap: newChecksMap };
     setNewHabitName('');
   };
 
   const handleDeleteHabit = (habitId: string) => {
     if (!confirm('Delete this habit?')) return;
-    setHabits(prev => prev.filter(h => h.id !== habitId));
+    const newHabits = habits.filter(h => h.id !== habitId);
+    const newChecksMap = { ...checksMap };
+    delete newChecksMap[habitId];
+    setHabits(newHabits);
+    setChecksMap(newChecksMap);
+    cache.current[cacheKey] = { habits: newHabits, checksMap: newChecksMap };
     fetch(`/api/habits/${habitId}`, { method: 'DELETE', headers: { 'x-track-password': password } });
   };
 
   const handleGoalSave = (habitId: string, value: string) => {
     const goal = parseInt(value);
     if (!isNaN(goal) && goal > 0) {
-      setHabits(prev => prev.map(h => h.id === habitId ? { ...h, goal } : h));
+      const newHabits = habits.map(h => h.id === habitId ? { ...h, goal } : h);
+      setHabits(newHabits);
+      cache.current[cacheKey] = { ...cache.current[cacheKey], habits: newHabits };
       fetch(`/api/habits/${habitId}`, {
         method: 'PATCH',
         headers: { 'Content-Type': 'application/json', 'x-track-password': password },
@@ -228,12 +198,12 @@ export default function HabitTable({ year, month, password }: Props) {
   };
 
   const getDailyTotal = (day: number) =>
-    habits.reduce((n, h) => n + (getChecks(h.id).find(c => c.day === day && c.completed) ? 1 : 0), 0);
-
-  const weekCols = getWeekGroups(year, month);
+    habits.reduce((n, h) => n + ((checksMap[h.id] || []).find(c => c.day === day && c.completed) ? 1 : 0), 0);
 
   const progressColor = (pct: number) =>
     pct >= 80 ? 'bg-green-500' : pct >= 40 ? 'bg-amber-400' : 'bg-red-500';
+
+  const weekCols = getWeekGroups(year, month);
 
   if (loading) return <div className="p-8 text-gray-400">Loading...</div>;
 
@@ -241,7 +211,6 @@ export default function HabitTable({ year, month, password }: Props) {
     <div className="overflow-x-auto">
       <table className="border-collapse text-sm w-full min-w-max">
         <thead>
-          {/* Week headers */}
           <tr>
             <th className="border border-gray-200 px-2 py-1 bg-gray-50 text-gray-500 font-normal" rowSpan={2}>#</th>
             <th className="border border-gray-200 px-3 py-1 bg-gray-50 text-left text-gray-500 font-normal min-w-[160px]" rowSpan={2}>Habit Name</th>
@@ -261,7 +230,6 @@ export default function HabitTable({ year, month, password }: Props) {
             <th className="border border-gray-200 px-2 py-1 bg-gray-50 text-gray-500 font-normal w-24" rowSpan={2}>Progress</th>
             <th className="border border-gray-200 px-2 py-1 bg-gray-50 text-gray-500 font-normal" rowSpan={2}>%</th>
           </tr>
-          {/* Day numbers */}
           <tr>
             {ALL_DAYS.map(day => {
               const valid = day <= daysInMonth;
@@ -282,7 +250,7 @@ export default function HabitTable({ year, month, password }: Props) {
 
         <tbody>
           {habits.map((habit, i) => {
-            const checks = getChecks(habit.id);
+            const checks = checksMap[habit.id] || [];
             const done = checks.filter(c => c.completed).length;
             const left = Math.max(0, habit.goal - done);
             const pct = habit.goal > 0 ? Math.round((done / habit.goal) * 100) : 0;
@@ -341,10 +309,7 @@ export default function HabitTable({ year, month, password }: Props) {
                 <td className="border border-gray-200 px-2 py-1 text-center text-gray-400">{left}</td>
                 <td className="border border-gray-200 px-3 py-1">
                   <div className="w-full bg-gray-200 rounded-full h-2">
-                    <div
-                      className={`h-2 rounded-full ${progressColor(pct)}`}
-                      style={{ width: `${Math.min(pct, 100)}%` }}
-                    />
+                    <div className={`h-2 rounded-full ${progressColor(pct)}`} style={{ width: `${Math.min(pct, 100)}%` }} />
                   </div>
                 </td>
                 <td className="border border-gray-200 px-2 py-1 text-center font-semibold text-gray-700">{pct}%</td>
@@ -352,7 +317,6 @@ export default function HabitTable({ year, month, password }: Props) {
             );
           })}
 
-          {/* Daily totals row */}
           <tr className="bg-gray-50">
             <td colSpan={3} className="border border-gray-200 px-3 py-1 text-right text-xs text-gray-400 font-medium">
               Daily Total:
@@ -367,7 +331,6 @@ export default function HabitTable({ year, month, password }: Props) {
         </tbody>
       </table>
 
-      {/* Add habit */}
       <div className="flex items-center gap-2 mt-3">
         <input
           type="text"

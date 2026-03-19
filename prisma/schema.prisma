@@ -10,24 +10,17 @@ model Habit {
   id         String   @id @default(uuid())
   name       String
   goal       Int      @default(30)
+  year       Int
+  month      Int
   created_at DateTime @default(now())
-  months     Month[]
-}
-
-model Month {
-  id       String  @id @default(uuid())
-  habit_id String
-  year     Int
-  month    Int
-  habit    Habit   @relation(fields: [habit_id], references: [id], onDelete: Cascade)
-  checks   Check[]
+  checks     Check[]
 }
 
 model Check {
   id         String   @id @default(uuid())
-  month_id   String
+  habit_id   String
   day        Int
   completed  Boolean
   updated_at DateTime @updatedAt
-  month      Month    @relation(fields: [month_id], references: [id], onDelete: Cascade)
+  habit      Habit    @relation(fields: [habit_id], references: [id], onDelete: Cascade)
 }

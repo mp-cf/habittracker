@@ -9,7 +9,17 @@ export async function GET(request: NextRequest) {
   }
 
   try {
-    const habits = await prisma.habit.findMany({ orderBy: { created_at: 'asc' } });
+    const { searchParams } = new URL(request.url);
+    const year = searchParams.get('year');
+    const month = searchParams.get('month');
+
+    const habits = await prisma.habit.findMany({
+      where: {
+        ...(year ? { year: parseInt(year) } : {}),
+        ...(month ? { month: parseInt(month) } : {}),
+      },
+      orderBy: { created_at: 'asc' },
+    });
     return NextResponse.json(habits);
   } catch {
     return NextResponse.json({ error: 'Failed to fetch habits' }, { status: 500 });
@@ -23,11 +33,13 @@ export async function POST(request: NextRequest) {
   }
 
   try {
-    const { name, goal } = await request.json();
-    if (!name) {
-      return NextResponse.json({ error: 'Name is required' }, { status: 400 });
+    const { name, goal, year, month } = await request.json();
+    if (!name || !year || !month) {
+      return NextResponse.json({ error: 'name, year, and month are required' }, { status: 400 });
     }
-    const habit = await prisma.habit.create({ data: { name, goal: goal ?? 30 } });
+    const habit = await prisma.habit.create({
+      data: { name, goal: goal ?? 30, year: parseInt(year), month: parseInt(month) },
+    });
     return NextResponse.json(habit, { status: 201 });
   } catch {
     return NextResponse.json({ error: 'Failed to add habit' }, { status: 500 });
