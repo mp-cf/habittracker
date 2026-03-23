@@ -22,7 +22,8 @@ export async function GET(request: NextRequest) {
     });
     return NextResponse.json(habits);
   } catch (e) {
-    return NextResponse.json({ error: 'Failed to fetch habits', detail: String(e) }, { status: 500 });
+    console.error('GET /api/habits error:', e);
+    return NextResponse.json({ error: 'Failed to fetch habits', detail: e instanceof Error ? e.message : String(e) }, { status: 500 });
   }
 }
 
