@@ -21,8 +21,8 @@ export async function GET(request: NextRequest) {
       orderBy: { created_at: 'asc' },
     });
     return NextResponse.json(habits);
-  } catch {
-    return NextResponse.json({ error: 'Failed to fetch habits' }, { status: 500 });
+  } catch (e) {
+    return NextResponse.json({ error: 'Failed to fetch habits', detail: String(e) }, { status: 500 });
   }
 }
 
