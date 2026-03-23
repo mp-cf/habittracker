@@ -42,7 +42,9 @@ export async function POST(request: NextRequest) {
       data: { name, goal: goal ?? 30, year: parseInt(year), month: parseInt(month) },
     });
     return NextResponse.json(habit, { status: 201 });
-  } catch {
-    return NextResponse.json({ error: 'Failed to add habit' }, { status: 500 });
+  } catch (e) {
+    console.error('POST /api/habits error:', e);
+    console.error('DATABASE_URL set:', !!process.env.DATABASE_URL);
+    return NextResponse.json({ error: 'Failed to add habit', detail: e instanceof Error ? e.message : String(e) }, { status: 500 });
   }
 }
