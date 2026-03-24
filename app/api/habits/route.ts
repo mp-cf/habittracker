@@ -45,6 +45,7 @@ export async function POST(request: NextRequest) {
   } catch (e) {
     console.error('POST /api/habits error:', e);
     console.error('DATABASE_URL set:', !!process.env.DATABASE_URL);
+    console.error('All env keys:', Object.keys(process.env).join(', '));
     return NextResponse.json({ error: 'Failed to add habit', detail: e instanceof Error ? e.message : String(e) }, { status: 500 });
   }
 }
