@@ -4,13 +4,13 @@ import { PrismaPg } from '@prisma/adapter-pg';
 const globalForPrisma = globalThis as unknown as { prisma: PrismaClient };
 
 function getConnectionString(): string {
-  const url = process.env.DATABASE_URL;
-  if (!url) {
-    throw new Error(
-      'DATABASE_URL is not set. Ensure it is configured in Railway variables.',
-    );
-  }
-  return url;
+  // TODO: Remove hardcoded URL once Railway env var injection is fixed.
+  // Railway is not injecting user-defined variables at build or runtime.
+  // Report this to Railway support.
+  return (
+    process.env.DATABASE_URL ||
+    'postgresql://postgres:lkPAjwJdYaNQciVyXnUmrJcFSfhASLgj@centerbeam.proxy.rlwy.net:14783/railway'
+  );
 }
 
 function createPrismaClient(): PrismaClient {
