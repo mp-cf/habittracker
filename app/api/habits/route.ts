@@ -45,7 +45,7 @@ export async function POST(request: NextRequest) {
   } catch (e) {
     console.error('POST /api/habits error:', e);
     console.error('DATABASE_URL set:', !!process.env.DATABASE_URL);
-    const url = process.env.DATABASE_URL || process.env.RAILWAY_SERVICE_POSTGRES_URL || '';
+    const url = process.env.DATABASE_URL || process.env.POSTGRES_URL || '';
     const masked = url.replace(/:([^@]+)@/, ':***@');
     console.error('Connection URL:', masked);
     return NextResponse.json({ error: 'Failed to add habit', detail: e instanceof Error ? e.message : String(e) }, { status: 500 });
