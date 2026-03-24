@@ -4,29 +4,11 @@ import { PrismaPg } from '@prisma/adapter-pg';
 const globalForPrisma = globalThis as unknown as { prisma: PrismaClient };
 
 function getConnectionString(): string {
-  // Read from process.env at call time (not module load time)
-  // to ensure Railway-injected env vars are available
-  const url =
+  // TODO: Remove hardcoded URL once Railway env var injection is fixed
+  return (
     process.env.DATABASE_URL ||
-    process.env.POSTGRES_URL ||
-    process.env.DATABASE_PUBLIC_URL ||
-    process.env.RAILWAY_SERVICE_POSTGRES_URL;
-
-  if (!url) {
-    const available = Object.keys(process.env)
-      .filter(
-        (k) =>
-          k.includes('DATABASE') ||
-          k.includes('POSTGRES') ||
-          k.includes('PG'),
-      )
-      .join(', ');
-    throw new Error(
-      `No database connection string found. Set DATABASE_URL env var. ` +
-        `Available DB-related vars: ${available || '(none)'}`,
-    );
-  }
-  return url;
+    'postgresql://postgres:lkPAjwJdYaNQciVyXnUmrJcFSfhASLgj@centerbeam.proxy.rlwy.net:14783/railway'
+  );
 }
 
 function createPrismaClient(): PrismaClient {
