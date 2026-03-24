@@ -9,7 +9,8 @@ function getConnectionString(): string {
   const url =
     process.env.DATABASE_URL ||
     process.env.POSTGRES_URL ||
-    process.env.DATABASE_PUBLIC_URL;
+    process.env.DATABASE_PUBLIC_URL ||
+    process.env.RAILWAY_SERVICE_POSTGRES_URL;
 
   if (!url) {
     const available = Object.keys(process.env)
